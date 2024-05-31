@@ -5,6 +5,18 @@ local M = {}
 
 function M.setup(user_config)
 	config.setup(user_config)
+	M.set_keymap()
+end
+
+function M.set_keymap()
+	if config.config.keymap then
+		vim.api.nvim_set_keymap(
+			"n",
+			config.config.keymap,
+			"<cmd>lua require('simplesnip').select_snippet()<CR>",
+			{ noremap = true, silent = true }
+		)
+	end
 end
 
 function M.select_snippet()
