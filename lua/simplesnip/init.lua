@@ -21,7 +21,7 @@ function M.set_keymaps()
 		vim.api.nvim_set_keymap(
 			"v",
 			config.config.keymap_add,
-			"<cmd>lua require('simplesnip').add_snippet()<CR>",
+			':<C-u>lua require("simplesnip").add_snippet()<CR>',
 			{ noremap = true, silent = true }
 		)
 	end
@@ -54,43 +54,27 @@ function M.insert_snippet(file_path)
 	vim.api.nvim_put(lines, "l", false, true)
 end
 
+local function get_visual_selection()
+	local s_start = vim.fn.getpos("'<")
+	local s_end = vim.fn.getpos("'>")
+	local n_lines = math.abs(s_end[2] - s_start[2]) + 1
+	local lines = vim.api.nvim_buf_get_lines(0, s_start[2] - 1, s_end[2], false)
+	lines[1] = string.sub(lines[1], s_start[3], -1)
+	if n_lines == 1 then
+		lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3] - s_start[3] + 1)
+	else
+		lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3])
+	end
+	return table.concat(lines, "\n")
+end
+
 function M.add_snippet()
-	-- Ensure we are in visual mode when capturing the selection
-	if vim.fn.mode() ~= "v" and vim.fn.mode() ~= "V" and vim.fn.mode() ~= "\22" then
-		print("Error: add_snippet should be called in visual mode")
-		return
-	end
-
-	-- Get the start and end positions of the visual selection
-	local start_pos = vim.fn.getpos("'<")
-	local end_pos = vim.fn.getpos("'>")
-
-	print("start_pos:", vim.inspect(start_pos))
-	print("end_pos:", vim.inspect(end_pos))
-
-	if start_pos[2] == 0 or end_pos[2] == 0 then
-		print("Error: Invalid visual selection positions.")
-		return
-	end
-
-	-- Get the lines in the selected range
-	local lines = vim.fn.getline(start_pos[2], end_pos[2])
-	print("lines before adjustment:", vim.inspect(lines))
+	local lines = get_visual_selection()
 
 	if not lines or #lines == 0 then
 		print("Error: No lines selected.")
 		return
 	end
-
-	-- Adjust the first and last lines to include only the selected part
-	if #lines == 1 then
-		lines[1] = string.sub(lines[1], start_pos[3], end_pos[3])
-	else
-		lines[1] = string.sub(lines[1], start_pos[3])
-		lines[#lines] = string.sub(lines[#lines], 1, end_pos[3])
-	end
-
-	print("lines after adjustment:", vim.inspect(lines))
 
 	-- Prompt the user for a snippet name
 	local snippet_name = vim.fn.input("Enter snippet name: ")
@@ -106,7 +90,14 @@ function M.add_snippet()
 	end
 
 	local snippet_file = snippets_path .. "/" .. snippet_name .. ".snippet"
-	vim.fn.writefile(lines, snippet_file)
+
+	-- Open the snippet file in write mode
+	local file = assert(io.open(snippet_file, "w"), "Error opening snippet file")
+
+	-- Write the entire snippet to the file
+	file:write(lines)
+
+	file:close()
 
 	print("Snippet saved to " .. snippet_file)
 end
